@@ -1,0 +1,563 @@
+---
+title: "MachineLearningFinalProject"
+author: "Lingyi Chen"
+date: "1/26/2022"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+read files
+```{r}
+#install.packages("openxlsx")
+library(readr)
+Training_Data_for_Ag_Project <- read_csv("归档/Training Data for Ag Project.csv")
+Seed1data=Training_Data_for_Ag_Project
+#library(openxlsx)
+#Seed1data <- read.xlsx("Training Data for Ag Project.xlsx",sheet = 1)
+
+library(readxl)
+Evaluation_dataset_for_Ag_Project <- read_excel("归档/Evaluation dataset for Ag Project.xlsx")
+evaluation_data = Evaluation_dataset_for_Ag_Project
+#evaluation_data
+```
+Descriptive Analytics
+#PLot the latitude and longtitude on a map
+```{r}
+# define a map
+library(ggplot2)
+ 
+library(ggmap)
+ 
+library(sp)
+ 
+library(maptools)
+ 
+library(maps)
+
+map.x= Seed1data$Longitude
+map.y=Seed1data$Latitude
+
+
+mp<-NULL
+
+mapworld<-borders("usa",colour = "gray50",fill="white")
+
+mp<-ggplot()+mapworld+xlim(-125,-60)+ylim(25,50)
+
+mp2<-mp+geom_point(aes(x=map.x,y=map.y),color="darkorange")+scale_size(range=c(1,1))
+
+mp3<-mp2+theme(legend.position = "none")
+
+mp3
+```
+# Cluster on location
+```{r}
+set.seed(100)
+geo=data.frame(map.x,map.y)
+target.map=c(evaluation_data$Longitude,evaluation_data$Latitude)
+geo_1=rbind(geo,target.map)
+km.out=kmeans(geo_1,20,nstart=20) #geography
+#km.out$cluster[1:34213]
+Seed1data['Cluster']=km.out$cluster[1:34213]
+names(Seed1data)
+plot(geo, col=(km.out$cluster), main = "K-Means Clustering Results with K = 20", xlab="", ylab="", pch=20,cex=2)
+
+mp4=mp+geom_point(aes(x=geo_1$map.x,y=geo_1$map.y),color=(km.out$cluster))+scale_size(range=c(1,1))
+mp4
+cluster_1=km.out$cluster
+cluster_1[34214]
+#the target farm is located in cluster 12
+#write.csv(Seed1data,file = "New_data_1.csv")
+#Target_cluster=Seed1data[km.out$cluster==12,]
+Target_cluster=Seed1data[Seed1data$Cluster==12,]
+table(Target_cluster$Weather1)
+table(Target_cluster$Weather2)
+unique(Target_cluster$Weather1)
+#table(Seed1data$Weather1)
+#table(Seed1data$Weather2)
+#table(Seed1data$Soil_Type)
+
+write.csv(Target_cluster,file='Target_cluster.csv')
+```
+
+```{r}
+#Weather,soil type
+#table(train.farm$Weather1)
+w1 = c('100'=1690,'221'=3977,'222'=2800,'231'=4,'321'=8098,'322'=15314,'332'=787,'333'=693,'423'=58,'433'=792)
+sumw1 = 1690+3977+2800+4+8098+15314+787+693+58+792
+weather1_freq = rep(0,nrow(Seed1data))
+for (i in 1:nrow(Seed1data)){
+   weather1_freq[i] = w1[as.character(Seed1data$Weather1[i])]/sumw1
+}
+Seed1data = cbind(Seed1data,weather1_freq)
+
+#table(train.farm$Weather2)
+w2 = c('100'=1690,'211'=6847,'221'=2093,'222'=9,'311'=9973,'312'=158,'321'=4547,'322'=1534,'323'=563,'332'=1623,'333'=274,'411'=616,'412'=49,'421'=26,'422'=354,'423'=1604,'432'=494,'433'=1759)
+sumw2 = 1690+6847+2093+9+9973+158+4547+1534+563+1623+274+616+49+26+354+1604+494+1759 
+weather2_freq = rep(0,nrow(Seed1data))
+for (i in 1:nrow(Seed1data)){
+   weather2_freq[i] = w2[as.character(Seed1data$Weather2[i])]/sumw2
+}
+Seed1data = cbind(Seed1data,weather2_freq)
+
+#table(train.farm$Soil_Type)
+s1 = c('211'=1,'212'=3958,'213'=5426,'222'=972,'223'=462,'232'=763,'233'=89,'311'=480,'312'=9703,'313'=5373,'321'=520,'322'=2167,'323'=2035,'331'=7,'422'=118,'423'=67,'432'=750,'433'=1322)
+sums1 = 1+3958+5426+972+462+763+89+480+9703+5373+520+2167+2035+7+118+67+750+1322
+soil_freq = rep(0,nrow(Seed1data))
+for (i in 1:nrow(Seed1data)){
+   soil_freq[i] = s1[as.character(Seed1data$Soil_Type[i])]/sums1
+}
+Seed1data = cbind(Seed1data,soil_freq)
+
+soil_freq = s1['222']/sums1
+evaluation_data = cbind(evaluation_data,soil_freq)
+#fix(train.farm)
+```
+
+
+#frequency distribution for varieties
+,"Genetics"
+```{r}
+names(Seed1data)
+#"Temp_03","Temp_04","Temp_05","Temp_06","Temp_07","Temp_08","Temp_09"
+#"Prec_03","Prec_04","Prec_05","Prec_06","Prec_07","Prec_08","Prec_09",
+#"Rad_03","Rad_04","Rad_05","Rad_06","Rad_07","Rad_08","Rad_09",
+keepvars=c("Variety","Variety_Yield","GrowingSeason","Location","Latitude","Longitude","Probability","RelativeMaturity25","weather1_freq","weather2_freq","Prob_IRR","soil_freq" ,"Median_Temp","Median_Prec","Median_Rad","PH1","AWC1","Clay1","Silt1","Sand1","Sand2","Clay2","PH2","Acres","Density","CEC","CE")
+
+target = c("Variety_Yield")
+
+newdata = Seed1data[,keepvars]
+#use complete.case() to Return a logical vector indicating which cases are complete and drop uncompleted data
+newdata = newdata[complete.cases(newdata),]  
+#newdata[,"SOIL_CUBE"] = factor(newdata[,"SOIL_CUBE"])
+distribution=table(newdata$Variety)
+Distribution=as.data.frame(distribution)
+colnames(Distribution)=c('Varieties','Frequency')
+Distribution=Distribution[order(Distribution$Frequency,decreasing = TRUE),]
+barplot(Distribution$Frequency)
+
+Distribution$Varieties[1:5]
+#The Varieties with top 5 frquency is V102 V115 V121 V103 V99.
+
+#split the dataframe based on different varieties
+VarietyData = split(newdata, newdata$Variety)
+
+```
+#change all categorical variables into factor variables
+newdata[,"Soil_Type"]=factor(newdata[,"Soil_Type"])
+newdata[,"Location"]=factor(newdata[,"Location"])
+newdata[,"Variety"]=factor(newdata[,"Variety"])
+```{r}
+# varieties more than 100 observations
+SufDataVarieties = c()
+
+# varieties less than 100 observations
+InsufDataVarieties = c()
+
+# set the minimum observation to build model == 50
+MinN = 50
+
+N = 10000
+
+limit = 0.025
+
+#run for-loop to get assign sufficient and insufficient varieties
+for(i in seq(1,length(unique(newdata$Variety)))){
+  if((dim(VarietyData[[i]])[1])>MinN){
+    SufDataVarieties = c(SufDataVarieties,(as.character(VarietyData[[i]][1,"Variety"])))
+  }else{
+    InsufDataVarieties = c(InsufDataVarieties,(as.character(VarietyData[[i]][1,"Variety"])))
+  }
+}
+
+#create a data frame for insufficient varieties
+InsufVarietyData = data.frame()
+
+# loop through the length of insufficient varieties, 
+# append the rows with same varieties as insufficient varieties
+# to the new data frame.
+for(i in 1:length(InsufDataVarieties)){
+  InsufVarietyData = rbind(InsufVarietyData, newdata[which(newdata$Variety == InsufDataVarieties[i]),])
+
+}
+
+SufVarietyData = data.frame()
+#InsufDataVarieties
+for(i in 1:length(SufDataVarieties)){
+  SufVarietyData = rbind(SufVarietyData, newdata[which(newdata$Variety == SufDataVarieties[i]),])
+}
+
+# split the sufficient varieties data based on sufficient variety into list of data frames
+SplitData = split(SufVarietyData,SufVarietyData$Variety)
+
+#only keeps the dataframes with more than 1 row of data (sufficient varieties data)
+SplitData = SplitData[sapply(SplitData, nrow)>0]
+
+Varieties = as.character(unique(SufVarietyData$Variety))
+Varieties
+```
+# loacations & weather variables
+```{r}
+plot(Seed1data$Location,Seed1data$Median_Prec)
+plot(Seed1data$Location,Seed1data$Median_Temp)
+plot(Seed1data$Location,Seed1data$Median_Rad)
+plot(Seed1data$Location,Seed1data$Weather1)
+pairs(~Location+Weather1+Median_Prec+Median_Temp+Median_Rad,Seed1data)
+
+
+```
+#Plot the distribution of the yield variables.
+```{r}
+hist(Seed1data$Variety_Yield)
+
+summary(Seed1data$Variety_Yield)
+```
+#Predictive Analytics
+#1. Linear Regression
+```{r}
+Linear.Regression = function(ori_data){
+  set.seed(1)
+  train = sample(nrow(ori_data),nrow(ori_data)*0.7)
+  
+  lm.fit = lm(Variety_Yield~., data= ori_data[train,])
+  lm.pred = predict(lm.fit, newdata = ori_data[-train,])
+  error = mean((ori_data$Variety_Yield - lm.pred)[-train]^2)
+  return(error)
+}
+
+results.linear = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.linear[i] = Linear.Regression(data_variety)
+}
+Linear.Regression.Result = cbind(Varieties, results.linear)
+Linear.Regression.Result
+mean(results.linear)
+order(results.linear)
+#the top 5 Variety with lowest test MSE is V104,V117,V121,V133,V186.
+#3.392863e+16
+
+```
+#2. Lasso
+```{r}
+LASSO = function(original_data){
+  library(glmnet)
+  set.seed(2)
+  grid = 10^seq(10, -2, length=100)
+  x = model.matrix(Variety_Yield~., data = original_data)[,-1]
+  y = original_data$Variety_Yield
+  train = sample(nrow(original_data),nrow(original_data)*0.7)
+  test = -train
+  y.test = y[test]
+  
+  lasso.mod = glmnet(x[train,], y[train], alpha = 1, lambda = grid)
+  cv.out = cv.glmnet(x[train,], y[train], alpha = 1)
+  bestlam = cv.out$lambda.min
+  
+  lasso.pred = predict(lasso.mod, s = bestlam, newx = x[-train,])
+  MSE = mean((lasso.pred - y[-train])^2)
+  return(MSE)
+}
+
+results.lasso = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[, -1]
+  results.lasso[i] = LASSO(data_variety)
+}
+order1=order(results.lasso)
+LASSO_result = cbind(Varieties, results.lasso,order1)
+LASSO_result
+mean(results.lasso)
+#which.min(results.lasso)
+
+#the average test MSE is 1.371927e+17. The varieties with the lowest 5 test MSE is V107,V193,V41,V51,V99.
+```
+#3. Regression Tree
+```{r}
+Tree.mode = function(original_data){
+  library(tree)
+  set.seed(2)
+  train = sample(nrow(original_data), nrow(original_data)*0.7)
+  
+  tree.variety = tree(Variety_Yield~., data=original_data[train,])
+  
+  yhat.tree = predict(tree.variety, newdata = original_data[-train,])
+  original_data.test = original_data[-train, "Variety_Yield"]
+  MSE = mean((yhat.tree - original_data.test)^2)
+  return(MSE)
+}
+
+results.tree = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.tree[i] = Tree.mode(data_variety)
+}
+order2=order(results.tree)
+Tree_result = cbind(Varieties, results.tree,order2)
+Tree_result
+
+mean(results.tree)
+which.min(results.tree)
+#the average test MSE is 100.124. The varieties with the lowest 5 test MSE is V105,V133,V139,V191,V94.
+```
+#4. Bagging
+```{r}
+Bagging.mode = function(original_data){
+  library(randomForest)
+  set.seed(2)
+  train = sample(nrow(original_data),nrow(original_data)*0.7)
+  
+  bag.variety = randomForest(Variety_Yield~., data=original_data[train,], mtry = 40)
+  yhat.bag = predict(bag.variety, newdata = original_data[-train,])
+  original_data.test = original_data[-train, "Variety_Yield"]
+  
+  MSE = mean((yhat.bag - original_data.test)^2)
+  return(MSE)
+}
+
+results.Bagging = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.Bagging[i] = Bagging.mode(data_variety)
+}
+order3=order(results.Bagging)
+Bagging_result = cbind(Varieties, results.Bagging,order3)
+Bagging_result
+mean(results.Bagging)
+#the average test MSE is 80.69073. The varieties with the lowest 5 test MSE is V110,V180,V181,V32,V95.
+```
+#5. random forest
+```{r}
+Random.Forest = function(original_data){
+  library(randomForest)
+  set.seed(2)
+  train = sample(nrow(original_data),nrow(original_data)*0.7)
+  
+  #Only use square-root of total predictors as predictors
+  rf.variety = randomForest(Variety_Yield~., data=original_data[train,], mtry = 7)
+  
+  yhat.rf = predict(rf.variety, newdata = original_data[-train,])
+  original_data.test = original_data[-train, "Variety_Yield"]
+  MSE = mean((yhat.rf - original_data.test)^2)
+  return(MSE)
+}
+
+results.random.forest = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.random.forest[i] = Random.Forest(data_variety)
+}
+
+order4=order(results.random.forest)
+rf_result = cbind(Varieties,results.random.forest,order4)
+rf_result
+mean(results.random.forest)
+#the average test MSE is 78.8283. The varieties with the lowest 5 test MSE is V118,V131,V185,V194,V94.
+```
+#6. Boosted Trees
+```{r}
+Boosted.Trees = function(original_data){
+  library(gbm)
+  set.seed(2)
+  train = sample(nrow(original_data), nrow(original_data)*0.7)
+  
+  boost.variety = gbm(Variety_Yield~., data = original_data[train,], distribution = "gaussian", n.trees = 5000,
+                      interaction.depth = 4, bag.fraction = 0.9)
+  
+  yhat.boost = predict(boost.variety, newdata = original_data[-train,], n.trees=5000)
+  original_data.test = original_data[-train, "Variety_Yield"]
+  MSE = mean((yhat.boost - original_data.test)^2)
+  return(MSE)
+}
+results.Boosted.Trees = rep(0,length(SplitData))
+```
+
+
+```{r}
+
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.Boosted.Trees[i] = Boosted.Trees(data_variety)
+}
+
+order5=order(results.Boosted.Trees)
+Boosted_Trees_result = cbind(Varieties, results.Boosted.Trees,order5)
+Boosted_Trees_result
+mean(results.Boosted.Trees)
+#Insufficient
+results.Boosted.Trees[length(SplitData)+1] = Boosted.Trees(InsufVarietyData)
+
+mean(results)
+#the average test MSE is 101.2748. The varieties with the lowest 5 test MSE is V103,V125,V190,V40,V56.
+```
+#neural network
+```{r}
+Neural.Network = function(original_data){
+  library(neuralnet)
+  library(caret)
+  library(nnet)
+  library(Metrics)
+  set.seed(2)
+  train = sample(nrow(original_data), nrow(original_data)*0.7)
+  neural.variety = neuralnet(Variety_Yield~., data = original_data[train,], linear.output = F, hidden = 7)
+  pred.test = compute(neural.variety,original_data[-train,])
+  original_data.test = original_data[-train, "Variety_Yield"]
+  MSE = rmse(original_data.test,pred.test$net.result)
+  return(MSE)
+}
+results.Neural.Network = rep(0,length(SplitData))
+for (i in 1:length(SplitData)){
+  data_variety = data.frame(SplitData[i])
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  results.Neural.Network[i] = Neural.Network(data_variety)
+}
+order6=order(results.Neural.Network)
+Neural_Network_result = cbind(Varieties, results.Neural.Network,order6)
+Neural_Network_result
+mean(results.Neural.Network)
+
+```
+#import evaluation data set
+```{r}
+x1=evaluation_data$Longitude
+y1=evaluation_data$Latitude
+mp5=mp3+geom_point(aes(x=x1,y=y1),color=c(km.out$cluster))+scale_size(range=c(1,1))
+mp5
+```
+# use neural network to predict the expected value and variance of each variety
+```{r}
+Target_cluster=Seed1data[km.out$cluster==cluster_1[34214],]
+target.cluster=Seed1data[km.out$cluster==cluster_1[34214],keepvars]
+#splitData2=split(target.cluster,target.cluster$Weather1)
+names(target.cluster)
+names(evaluation_data)
+library(dplyr)
+target.weathers = distinct(data.frame(cbind(Target_cluster$weather1_freq,Target_cluster$weather2_freq)))
+target.weathers
+colnames(target.weathers)=c('weather1_freq','weather2_freq')
+#ev1=rbind(evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data)
+#ev1=rbind(evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data,evaluation_data)
+ev1 = cbind(evaluation_data,target.weathers[1,])
+for (i in 2:(nrow(target.weathers)-1)){
+   ev1 = rbind(ev1,cbind(evaluation_data,target.weathers[i,]))
+}
+ev1
+#ev1[1,'Weather1']=100
+#ev1[2,'Weather1']=221
+#ev1[3,'Weather1']=222
+#ev1[4,'Weather1']=322
+#ev1[5,'Weather1']=423
+new_data=ev1[,c("GrowingSeason","Location","Latitude","Longitude","Probability","RelativeMaturity25",'weather1_freq','weather2_freq',"Prob_IRR","soil_freq","Median_Temp","Median_Prec","Median_Rad","PH1","AWC1","Clay1","Silt1","Sand1","Sand2","Clay2","PH2","Acres","Density","CEC","CE")]
+?predict
+Random.Forest.ev = function(original_data){
+  library(randomForest)
+  set.seed(2)
+  rf2.results = rep(0,nrow(ev1))
+  rf2.variety = randomForest(Variety_Yield~., data=original_data, mtry = 7)
+  
+  for (k in 1:nrow(ev1)){
+      rf2.results[k] = predict(rf2.variety,newdata=ev1[k,])
+   }
+   return(cbind(mean(rf2.results),sd(rf2.results)))
+  
+  #pred.RF = predict(rf2.variety, data = new_data)
+  
+ # mean.yield = mean(pred.RF)
+ #stdv.yield = sd(pred.RF)
+ # return(cbind(mean.yield,stdv.yield))
+}
+#rf2.results=matrix(data=NA,nrow=length(SplitData),ncol=2)
+Random.Forest.yield = rep(0,length(SplitData))
+Random.Forest.risk=rep(0,length(SplitData))
+
+for (i in 1:length(SplitData)){
+  
+  data_variety = data.frame(SplitData[i])
+  new_data['Variety']=Varieties[i]
+  new_data['Variety_Yield']=0
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  Random.Forest.yield[i] = Random.Forest.ev(data_variety)[1]
+  Random.Forest.risk[i]=Random.Forest.ev(data_variety)[2]
+}
+#Random.Forest.yield
+#which.max(Random.Forest.yield)
+order.yield=rank(Random.Forest.yield)
+#order.yield
+
+order.risk=rank(Random.Forest.risk)
+Random.Forest.result = cbind(Varieties, Random.Forest.yield,Random.Forest.risk,order.yield,order.risk)
+Random.Forest.result
+
+#plot(order.yield,order.risk)
+# The top 5 varieties with the highest mean yields are "V180","V31","V32","V98","V39"
+```
+
+```{r}
+Random.Forest.pred = function(original_data){
+  library(randomForest)
+  set.seed(2)
+  
+  rf2.variety = randomForest(Variety_Yield~., data=original_data, mtry = 7)
+  
+  #yhat.rf = predict(rf2.variety, newdata = new_data)
+  
+  for (k in 1:nrow(ev1)){
+      Random.Forest.yield1[i,k] = predict(rf2.variety,newdata=ev1[k,])
+   }
+   return(Random.Forest.yield1[i,])
+  
+  #return (c(pred.RF))
+}
+
+Random.Forest.yield1 = matrix(data=NA,nrow=length(SplitData),ncol=nrow(ev1))
+
+
+for (i in length(SplitData)){
+  
+  data_variety = data.frame(SplitData[i])
+  new_data['Variety']=Varieties[i]
+  new_data['Variety_Yield']=0
+  colnames(data_variety) = keepvars
+  data_variety = data_variety[,-1]
+  Random.Forest.yield1[i,] =Random.Forest.pred(data_variety)
+}
+#Random.Forest.yield1
+data_variety=data.frame(SplitData[38])
+data_variety=data.frame(SplitData[53])
+data_variety=data.frame(SplitData[54])
+data_variety=data.frame(SplitData[82])
+data_variety=data.frame(SplitData[57])
+new_data['Variety']=Varieties[i]
+new_data['Variety_Yield']=0
+colnames(data_variety) = keepvars
+data_variety = data_variety[,-1]
+Random.Forest.pred(data_variety)
+
+#,55,56,57,59
+```
+```{r}
+
+```
+
+
+```{r}
+write.csv(Random.Forest.result,file = "target_prediction.csv")
+
+```
